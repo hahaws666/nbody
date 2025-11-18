@@ -1,0 +1,76 @@
+==========================================
+Job ID: 100
+Job Name: nbody_1n_20t
+Nodes: 1
+Total Tasks: 20
+Tasks per Node: 20
+CPUs per Task: 2
+Total CPUs: 40
+==========================================
+Compiling with profiling support...
+rm -f nbody_bh gmon.out profile.txt
+mpic++ -std=c++14 -O3 -Wall -fopenmp -g -pg -o nbody_bh nbody_bh.cpp
+Built with profiling support (-g -pg)
+Run the program, then use: gprof nbody_bh gmon.out > profile.txt
+==========================================
+Running N-body simulation
+Number of bodies: 500000
+MPI processes: 20
+OpenMP threads per process: 2
+Total threads: 40
+Start time: Mon 17 Nov 2025 05:56:04 PM EST
+==========================================
+N_BODIES: 500000
+MPI processes: 20
+OpenMP threads per process: 2
+Total threads: 40
+
+=== Iteration 0 ===
+Center of Mass: (0.000991557, 0.000530366)
+Total Mass: 275212
+
+=== Iteration 10 ===
+Center of Mass: (0.00490609, 0.000429414)
+Total Mass: 275212
+
+=== Iteration 20 ===
+Center of Mass: (0.00882054, 0.000328251)
+Total Mass: 275212
+
+=== Iteration 30 ===
+Center of Mass: (0.0127349, 0.000227079)
+Total Mass: 275212
+
+=== Iteration 40 ===
+Center of Mass: (0.0166493, 0.000125875)
+Total Mass: 275212
+
+=== Iteration 50 ===
+Center of Mass: (0.0205637, 2.46497e-05)
+Total Mass: 275212
+
+=== Iteration 60 ===
+Center of Mass: (0.0244782, -7.65341e-05)
+Total Mass: 275212
+
+=== Iteration 70 ===
+Center of Mass: (0.0283926, -0.000177716)
+Total Mass: 275212
+
+=== Iteration 80 ===
+Center of Mass: (0.0323071, -0.0002789)
+Total Mass: 275212
+
+=== Iteration 90 ===
+Center of Mass: (0.0362215, -0.000380081)
+Total Mass: 275212
+
+=== Simulation Complete ===
+Total time: 399.536 seconds
+Time per iteration: 3.99536 seconds
+==========================================
+Job completed at Mon 17 Nov 2025 06:02:49 PM EST
+Wall clock time: 404.511072339 seconds
+==========================================
+Generating gprof profile...
+Profile saved to profile_rank0_100.txt

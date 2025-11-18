@@ -1,0 +1,26 @@
+==========================================
+Job ID: 99
+Job Name: nbody_1n_10t
+Nodes: 1
+Total Tasks: 10
+Tasks per Node: 10
+CPUs per Task: 4
+Total CPUs: 40
+==========================================
+Compiling with profiling support...
+rm -f nbody_bh gmon.out profile.txt
+mpic++ -std=c++14 -O3 -Wall -fopenmp -g -pg -o nbody_bh nbody_bh.cpp
+Built with profiling support (-g -pg)
+Run the program, then use: gprof nbody_bh gmon.out > profile.txt
+==========================================
+Running N-body simulation
+Number of bodies: 500000
+MPI processes: 10
+OpenMP threads per process: 4
+Total threads: 40
+Start time: Mon 17 Nov 2025 05:56:01 PM EST
+==========================================
+==========================================
+Job completed at Mon 17 Nov 2025 05:56:03 PM EST
+Wall clock time: 1.205727003 seconds
+==========================================

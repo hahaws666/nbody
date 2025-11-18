@@ -1,0 +1,13 @@
+==========================================
+Job ID: 104
+Job Name: fmm_2n_5t
+Nodes: 2
+Total Tasks: 10
+Tasks per Node: 5
+CPUs per Task: 8
+Total CPUs: 80
+==========================================
+Compiling...
+rm -f fmm_test fmm_parallel gmon.out profile*.txt
+g++ -std=c++14 -O3 -Wall -fopenmp -o fmm_test FMM.cpp -fopenmp
+Compilation failed!

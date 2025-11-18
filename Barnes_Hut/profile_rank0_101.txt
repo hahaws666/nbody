@@ -1,0 +1,225 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 38.21     51.75    51.75                             compute_force(Node*, int, double&, double&)
+ 34.23     98.10    46.36 140214482     0.00     0.00  insert_body(Node*, int)
+ 11.55    113.75    15.64                             main
+  6.09    122.00     8.25     3789     2.18     2.18  Node::~Node()
+  4.36    127.90     5.90     3583     1.65     1.65  collect_bodies(Node*, std::vector<int, std::allocator<int> >&)
+  2.87    131.78     3.88                             update_mass(Node*, Body const&)
+  1.12    133.29     1.51                             _init
+  0.69    134.23     0.94      808     1.16    69.50  merge_nodes(Node*, Node*)
+  0.55    134.97     0.74        1   740.11   748.82  compute_center_of_mass(double&, double&, double&)
+  0.36    135.46     0.49                             _dl_relocate_static_pie
+  0.00    135.46     0.00    63067     0.00     0.00  void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&)
+  0.00    135.46     0.00      101     0.00   599.69  build_tree_parallel(double, double, double, double)
+  0.00    135.46     0.00        1     0.00     0.00  init_bodies(int)
+  0.00    135.46     0.00        1     0.00     0.00  std::vector<Body, std::allocator<Body> >::_M_default_append(unsigned long)
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.01% of 135.46 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]     57.5   15.64   62.19                 main [1]
+                0.00   60.57     101/101         build_tree_parallel(double, double, double, double) [2]
+                0.87    0.00     400/3789        Node::~Node() [6]
+                0.74    0.01       1/1           compute_center_of_mass(double&, double&, double&) [10]
+                0.00    0.00       1/1           init_bodies(int) [16]
+-----------------------------------------------
+                0.00   60.57     101/101         main [1]
+[2]     44.7    0.00   60.57     101         build_tree_parallel(double, double, double, double) [2]
+                0.94   55.21     808/808         merge_nodes(Node*, Node*) [3]
+                4.42    0.00    2028/3789        Node::~Node() [6]
+-----------------------------------------------
+                                 486             merge_nodes(Node*, Node*) [3]
+                0.94   55.21     808/808         build_tree_parallel(double, double, double, double) [2]
+[3]     41.5    0.94   55.21     808+486     merge_nodes(Node*, Node*) [3]
+               46.36    0.00 140214482/140214482     insert_body(Node*, int) [5]
+                5.90    0.00    3583/3583        collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [7]
+                2.96    0.00    1357/3789        Node::~Node() [6]
+                0.00    0.00      81/63067       void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&) [15]
+                                 486             merge_nodes(Node*, Node*) [3]
+-----------------------------------------------
+                             312898095             compute_force(Node*, int, double&, double&) [4]
+[4]     38.2   51.75    0.00       0+312898095 compute_force(Node*, int, double&, double&) [4]
+                             312898095             compute_force(Node*, int, double&, double&) [4]
+-----------------------------------------------
+                             2469098748             insert_body(Node*, int) [5]
+               46.36    0.00 140214482/140214482     merge_nodes(Node*, Node*) [3]
+[5]     34.2   46.36    0.00 140214482+2469098748 insert_body(Node*, int) [5]
+                0.00    0.00   51246/63067       void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&) [15]
+                             2469098748             insert_body(Node*, int) [5]
+-----------------------------------------------
+                             77795285             Node::~Node() [6]
+                0.01    0.00       4/3789        compute_center_of_mass(double&, double&, double&) [10]
+                0.87    0.00     400/3789        main [1]
+                2.96    0.00    1357/3789        merge_nodes(Node*, Node*) [3]
+                4.42    0.00    2028/3789        build_tree_parallel(double, double, double, double) [2]
+[6]      6.1    8.25    0.00    3789+77795285 Node::~Node() [6]
+                             77795285             Node::~Node() [6]
+-----------------------------------------------
+                             43479414             collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [7]
+                5.90    0.00    3583/3583        merge_nodes(Node*, Node*) [3]
+[7]      4.4    5.90    0.00    3583+43479414 collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [7]
+                0.00    0.00   11740/63067       void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&) [15]
+                             43479414             collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [7]
+-----------------------------------------------
+                                                 <spontaneous>
+[8]      2.9    3.88    0.00                 update_mass(Node*, Body const&) [8]
+-----------------------------------------------
+                                                 <spontaneous>
+[9]      1.1    1.51    0.00                 _init [9]
+-----------------------------------------------
+                0.74    0.01       1/1           main [1]
+[10]     0.6    0.74    0.01       1         compute_center_of_mass(double&, double&, double&) [10]
+                0.01    0.00       4/3789        Node::~Node() [6]
+-----------------------------------------------
+                                                 <spontaneous>
+[11]     0.4    0.49    0.00                 _dl_relocate_static_pie [11]
+-----------------------------------------------
+                0.00    0.00      81/63067       merge_nodes(Node*, Node*) [3]
+                0.00    0.00   11740/63067       collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [7]
+                0.00    0.00   51246/63067       insert_body(Node*, int) [5]
+[15]     0.0    0.00    0.00   63067         void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&) [15]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[16]     0.0    0.00    0.00       1         init_bodies(int) [16]
+                0.00    0.00       1/1           std::vector<Body, std::allocator<Body> >::_M_default_append(unsigned long) [17]
+-----------------------------------------------
+                0.00    0.00       1/1           init_bodies(int) [16]
+[17]     0.0    0.00    0.00       1         std::vector<Body, std::allocator<Body> >::_M_default_append(unsigned long) [17]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [16] init_bodies(int)        [7] collect_bodies(Node*, std::vector<int, std::allocator<int> >&) [15] void std::vector<int, std::allocator<int> >::_M_realloc_append<int const&>(int const&)
+   [5] insert_body(Node*, int) [2] build_tree_parallel(double, double, double, double) [11] _dl_relocate_static_pie
+   [3] merge_nodes(Node*, Node*) [10] compute_center_of_mass(double&, double&, double&) [9] _init
+   [8] update_mass(Node*, Body const&) [6] Node::~Node()   [1] main
+   [4] compute_force(Node*, int, double&, double&) [17] std::vector<Body, std::allocator<Body> >::_M_default_append(unsigned long)
