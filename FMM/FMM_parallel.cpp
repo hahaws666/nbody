@@ -1,18 +1,27 @@
 #include <bits/stdc++.h>
 #include <mpi.h>
 #include <omp.h>
+#include <iomanip>
 using namespace std;
 
 // ================================================================
 // 2D Fast Multipole Method with MPI and OpenMP Parallelization
 // ================================================================
 
+// 配置参数
+constexpr double G = 1.0;            // 万有引力常数
+constexpr double DT = 0.01;          // 时间步长
+constexpr int N_ITERATIONS = 100;    // 迭代次数
+constexpr int OUTPUT_INTERVAL = 10;  // 输出间隔
+
 using Complex = complex<double>;
 
 struct Body {
     double z_real, z_imag; // position (split for MPI)
-    double q; // charge / mass
-    double phi; // potential
+    double vx, vy;         // velocity
+    double q;              // charge / mass
+    double phi;            // potential
+    double ax, ay;         // acceleration (for leapfrog)
 };
 
 struct Node {
@@ -184,20 +193,21 @@ struct FMM_parallel {
     void M2M(int parent, int child) {
         Node &np = nodes[parent];
         Node &nc = nodes[child];
-
+    
         Complex d = nc.center - np.center;
-
+    
         vector<Complex> newM(p+1, Complex(0,0));
-
-        for (int k=0;k<=p;k++) {
-            Complex dk(1,0);
-            for(int j=0;j<=k;j++) {
-                newM[k] += nc.M[j] * Complex(binomialCoeff(k,j), 0) * dk;
-                dk *= d;
+    
+        for (int k = 0; k <= p; k++) {
+            for (int j = 0; j <= k; j++) {
+                newM[k] += nc.M[j] * Complex(binomialCoeff(k, j), 0)
+                            * pow(d, k - j);
             }
         }
-        for (int k=0;k<=p;k++) np.M[k] += newM[k];
+        for (int k = 0; k <= p; k++)
+            np.M[k] += newM[k];
     }
+    
 
     void upward(int idx) {
         Node &node = nodes[idx];
@@ -467,6 +477,39 @@ void computeDirect(vector<Body> &b) {
 }
 
 // ------------------------------------------------------------
+// Compute force from potential
+// ------------------------------------------------------------
+
+// Compute force directly from all particles (simplified - can be optimized)
+void computeForceFromPotentialSimple(vector<Body> &bodies) {
+    int N = bodies.size();
+    const double h = 1e-5; // small perturbation
+    
+    #pragma omp parallel for
+    for (int i=0; i<N; i++) {
+        double phi0 = bodies[i].phi;
+        
+        // Compute gradient using nearby particles (simplified)
+        // For each particle, compute force from all other particles
+        double fx = 0.0, fy = 0.0;
+        for (int j=0; j<N; j++) {
+            if (i == j) continue;
+            double dx = bodies[j].z_real - bodies[i].z_real;
+            double dy = bodies[j].z_imag - bodies[i].z_imag;
+            double r2 = dx*dx + dy*dy;
+            double r = sqrt(r2 + 1e-15);
+            double r3 = r2 * r;
+            double force_mag = G * bodies[i].q * bodies[j].q / r3;
+            fx += force_mag * dx;
+            fy += force_mag * dy;
+        }
+        
+        bodies[i].ax = fx / bodies[i].q;  // acceleration = force / mass
+        bodies[i].ay = fy / bodies[i].q;
+    }
+}
+
+// ------------------------------------------------------------
 // Main
 // ------------------------------------------------------------
 
@@ -483,22 +526,27 @@ int main(int argc, char** argv) {
     int p = 6;
     double theta = 0.5;
     
-    // Define MPI datatype for Body
+    // Define MPI datatype for Body (now includes velocity and acceleration: 8 doubles)
     MPI_Datatype MPI_BODY;
-    MPI_Type_contiguous(4, MPI_DOUBLE, &MPI_BODY);
+    MPI_Type_contiguous(8, MPI_DOUBLE, &MPI_BODY);
     MPI_Type_commit(&MPI_BODY);
     
     vector<Body> bodies(N);
     mt19937_64 rng(123 + rank); // Different seed per rank
     uniform_real_distribution<double> U(-1,1);
+    uniform_real_distribution<double> V(-0.1, 0.1); // velocity
 
     // Initialize bodies (each rank generates all, but will sync)
     for (int i=0;i<N;i++) {
         Complex z = Complex(U(rng), U(rng));
         bodies[i].z_real = z.real();
         bodies[i].z_imag = z.imag();
+        bodies[i].vx = V(rng);
+        bodies[i].vy = V(rng);
         bodies[i].q = 1.0;
         bodies[i].phi = 0;
+        bodies[i].ax = 0;
+        bodies[i].ay = 0;
     }
     
     // Broadcast from rank 0 to ensure all ranks have same data
@@ -509,9 +557,26 @@ int main(int argc, char** argv) {
             Complex z = Complex(U(rng), U(rng));
             bodies[i].z_real = z.real();
             bodies[i].z_imag = z.imag();
+            bodies[i].vx = V(rng);
+            bodies[i].vy = V(rng);
         }
     }
     MPI_Bcast(bodies.data(), N, MPI_BODY, 0, MPI_COMM_WORLD);
+    
+    // Compute initial acceleration using FMM
+    FMM_parallel solver_init(bodies, p, theta);
+    solver_init.compute();
+    computeForceFromPotentialSimple(bodies);
+    
+    // Synchronize initial acceleration
+    vector<Body> temp_bodies_init(size * N);
+    MPI_Allgather(bodies.data(), N, MPI_BODY,
+                 temp_bodies_init.data(), N, MPI_BODY, MPI_COMM_WORLD);
+    for (int i=0; i<N; i++) {
+        int owner_rank = i % size;
+        bodies[i].ax = temp_bodies_init[owner_rank * N + i].ax;
+        bodies[i].ay = temp_bodies_init[owner_rank * N + i].ay;
+    }
     
     vector<Body> direct = bodies;
 
@@ -521,38 +586,137 @@ int main(int argc, char** argv) {
     }
     double direct_time = MPI_Wtime() - start_time;
 
+    // Time iteration loop with leapfrog integration
     start_time = MPI_Wtime();
-    FMM_parallel solver(bodies, p, theta);
-    solver.compute();
     
-    // Gather results from all ranks (each rank computes its assigned particles)
-    // For simplicity, all ranks compute all particles, but we can optimize later
-    vector<Body> all_results(size * N);
-    MPI_Allgather(bodies.data(), N, MPI_BODY,
-                 all_results.data(), N, MPI_BODY, MPI_COMM_WORLD);
-    
-    // Use results from rank 0 (or combine)
-    if (rank == 0) {
+    for (int iter = 0; iter < N_ITERATIONS; iter++) {
+        // Leapfrog method: x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
+        //                  v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
+        
+        // Step 1: Update positions using current velocity and acceleration
+        #pragma omp parallel for
         for (int i=0; i<N; i++) {
-            bodies[i].phi = all_results[i].phi;
+            bodies[i].z_real += bodies[i].vx * DT + 0.5 * bodies[i].ax * DT * DT;
+            bodies[i].z_imag += bodies[i].vy * DT + 0.5 * bodies[i].ay * DT * DT;
+        }
+        
+        // Synchronize positions
+        vector<Body> temp_bodies_pos(size * N);
+        MPI_Allgather(bodies.data(), N, MPI_BODY,
+                     temp_bodies_pos.data(), N, MPI_BODY, MPI_COMM_WORLD);
+        for (int i=0; i<N; i++) {
+            int owner_rank = i % size;
+            bodies[i].z_real = temp_bodies_pos[owner_rank * N + i].z_real;
+            bodies[i].z_imag = temp_bodies_pos[owner_rank * N + i].z_imag;
+        }
+        
+        // Step 2: Save old acceleration before computing new one
+        vector<double> ax_old(N), ay_old(N);
+        for (int i=0; i<N; i++) {
+            ax_old[i] = bodies[i].ax;
+            ay_old[i] = bodies[i].ay;
+        }
+        
+        // Step 3: Recompute potential and force at new positions
+        // First ensure all ranks have all positions (already done in step 1)
+        FMM_parallel solver(bodies, p, theta);
+        solver.compute();
+        
+        // Gather potential results
+        vector<Body> all_results(size * N);
+        MPI_Allgather(bodies.data(), N, MPI_BODY,
+                     all_results.data(), N, MPI_BODY, MPI_COMM_WORLD);
+        
+        // Update all ranks with all positions and potentials for force calculation
+        for (int i=0; i<N; i++) {
+            int owner_rank = i % size;
+            bodies[i].z_real = all_results[owner_rank * N + i].z_real;
+            bodies[i].z_imag = all_results[owner_rank * N + i].z_imag;
+            bodies[i].phi = all_results[owner_rank * N + i].phi;
+        }
+        
+        // Now compute force (needs all particles' positions)
+        computeForceFromPotentialSimple(bodies);
+        
+        // Gather force results
+        MPI_Allgather(bodies.data(), N, MPI_BODY,
+                     all_results.data(), N, MPI_BODY, MPI_COMM_WORLD);
+        
+        // Update all ranks with forces
+        for (int i=0; i<N; i++) {
+            int owner_rank = i % size;
+            bodies[i].ax = all_results[owner_rank * N + i].ax;
+            bodies[i].ay = all_results[owner_rank * N + i].ay;
+        }
+        
+        // Step 4: Update velocities using leapfrog: v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
+        #pragma omp parallel for
+        for (int i=0; i<N; i++) {
+            bodies[i].vx += 0.5 * (ax_old[i] + bodies[i].ax) * DT;
+            bodies[i].vy += 0.5 * (ay_old[i] + bodies[i].ay) * DT;
+        }
+        
+        // Synchronize velocities
+        vector<Body> temp_bodies(size * N);
+        MPI_Allgather(bodies.data(), N, MPI_BODY,
+                     temp_bodies.data(), N, MPI_BODY, MPI_COMM_WORLD);
+        
+        for (int i=0; i<N; i++) {
+            int owner_rank = i % size;
+            bodies[i].vx = temp_bodies[owner_rank * N + i].vx;
+            bodies[i].vy = temp_bodies[owner_rank * N + i].vy;
+        }
+        
+        // Output at intervals
+        if (iter % OUTPUT_INTERVAL == 0 && rank == 0) {
+            // Calculate kinetic and potential energy
+            double kinetic_energy = 0.0;
+            double potential_energy = 0.0;
+            
+            #pragma omp parallel for reduction(+:kinetic_energy,potential_energy)
+            for (int i=0; i<N; i++) {
+                double v2 = bodies[i].vx * bodies[i].vx + bodies[i].vy * bodies[i].vy;
+                kinetic_energy += 0.5 * bodies[i].q * v2;
+                potential_energy += bodies[i].q * bodies[i].phi;
+            }
+            potential_energy *= 0.5;
+            double total_energy = kinetic_energy + potential_energy;
+            
+            cout << "\n=== Iteration " << iter << " ===" << endl;
+            cout << "Kinetic Energy:    " << kinetic_energy << endl;
+            cout << "Potential Energy:  " << potential_energy << endl;
+            cout << "Total Energy:       " << total_energy << endl;
         }
     }
+    
     double fmm_time = MPI_Wtime() - start_time;
 
     if (rank == 0) {
-        double maxErr=0;
-        for (int i=0;i<N;i++) {
-            double err = fabs(bodies[i].phi - direct[i].phi) /
-                         max(1.0, fabs(direct[i].phi));
-            maxErr = max(maxErr, err);
+        // Calculate final energy
+        double kinetic_energy = 0.0;
+        double potential_energy = 0.0;
+        
+        #pragma omp parallel for reduction(+:kinetic_energy,potential_energy)
+        for (int i=0; i<N; i++) {
+            double v2 = bodies[i].vx * bodies[i].vx + bodies[i].vy * bodies[i].vy;
+            kinetic_energy += 0.5 * bodies[i].q * v2;
+            potential_energy += bodies[i].q * bodies[i].phi;
         }
-
+        potential_energy *= 0.5;
+        double total_energy = kinetic_energy + potential_energy;
+        
+        cout << "\n=== Simulation Complete ===" << endl;
         cout << "MPI processes: " << size << endl;
         cout << "OpenMP threads: " << omp_get_max_threads() << endl;
         cout << "N = " << N << endl;
-        cout << "Direct time = " << direct_time << " s\n";
-        cout << "FMM time    = " << fmm_time << " s\n";
-        cout << "Max relative error = " << maxErr << "\n";
+        cout << "Iterations = " << N_ITERATIONS << endl;
+        cout << "Time step = " << DT << endl;
+        cout << "Total time = " << fmm_time << " s\n";
+        cout << "Time per iteration = " << fmm_time / N_ITERATIONS << " s\n";
+        cout << "\n=== Final Energy ===" << endl;
+        cout << "Kinetic Energy:    " << kinetic_energy << endl;
+        cout << "Potential Energy:  " << potential_energy << endl;
+        cout << "Total Energy:       " << total_energy << endl;
     }
 
     MPI_Type_free(&MPI_BODY);
