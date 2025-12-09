@@ -269,8 +269,7 @@ void init_bodies(int rank) {
     bodies.resize(N_BODIES);
     
     if (rank == 0) {
-        random_device rd;
-        mt19937 gen(rd());
+        mt19937 gen(114514); // fixed seed
         uniform_real_distribution<double> pos_dis(-1.0, 1.0);
         uniform_real_distribution<double> vel_dis(-0.1, 0.1);
         uniform_real_distribution<double> mass_dis(0.1, 1.0);
